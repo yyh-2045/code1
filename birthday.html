@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy Birthday</title>
+<style>
+  :root {
+    /* 🎨 核心颜色配置（高级浅蓝/冰晶系） */
+    --win-bg: rgba(210, 230, 255, 0.65); 
+    --win-border: rgba(160, 200, 255, 0.8);
+    --text: #1e3a8a;
+    --muted: #4a628a;
+    --accent: #5b9be8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html, body {
+    height: 100%; 
+    background: url('./back1.png') no-repeat center center / cover;
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    color: var(--text); overflow: hidden; user-select: none;
+  }
+
+  #stage { position: fixed; inset: 0; overflow: hidden; z-index: 10; }
+
+  /* 基础弹窗样式 */
+  .fake-window {
+    position: absolute; 
+    padding: 14px 16px;
+    background: var(--win-bg); 
+    border: 1px solid var(--win-border);
+    border-radius: 12px; 
+    line-height: 1.6;
+    box-shadow: 0 8px 25px rgba(70, 130, 200, 0.15), 0 0 10px rgba(255, 255, 255, 0.3) inset; 
+    backdrop-filter: blur(8px); 
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2,0.9,0.3,1.2);
+    pointer-events: none;
+  }
+  .fake-window.show { opacity: 1; transform: scale(1); }
+
+  /* 💖 心形专属样式：继承祝福样式，但尺寸稍微收窄防止重叠 */
+  .fake-window.heart-mode {
+    width: 140px; 
+    padding: 12px 10px;
+    font-size: 14px; 
+    text-align: center;
+    font-weight: 600;
+    border-color: rgba(180, 215, 255, 0.9);
+    background: linear-gradient(160deg, rgba(220, 240, 255, 0.85), rgba(190, 220, 255, 0.75));
+  }
+
+  /* ✨ 满屏祝福弹窗样式 */
+  .fake-window.blessing {
+    width: clamp(160px, 18vw, 220px); 
+    padding: 20px;
+    font-size: clamp(14px, 1.5vw, 18px); 
+    text-align: center;
+    font-weight: 600; 
+    border-color: rgba(180, 215, 255, 0.9);
+    background: linear-gradient(160deg, rgba(220, 240, 255, 0.85), rgba(190, 220, 255, 0.75));
+  }
+
+  .overlay {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(230, 240, 255, 0.4); 
+    backdrop-filter: blur(10px); 
+    z-index: 1000;
+    transition: opacity 0.4s ease;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  
+  .card {
+    width: min(420px, 88vw); padding: 32px 28px;
+    background: rgba(225, 240, 255, 0.85); 
+    border: 1px solid rgba(255, 255, 255, 0.9); 
+    border-radius: 18px; text-align: center;
+    box-shadow: 0 20px 60px rgba(70, 130, 200, 0.2), 0 0 20px rgba(255,255,255,0.6) inset;
+  }
+  .card h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #1e3a8a; }
+  .card p { font-size: 15px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+  
+  .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  
+  .btn {
+    appearance: none; 
+    border: 1px solid rgba(160, 200, 255, 0.8); 
+    background: rgba(220, 235, 255, 0.7);
+    color: var(--text); 
+    padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+  }
+  .btn:hover { 
+    background: rgba(240, 248, 255, 1); 
+    transform: translateY(-2px); 
+    box-shadow: 0 6px 15px rgba(91, 155, 232, 0.2);
+  }
+  .btn:active { transform: scale(0.97); }
+  
+  .btn.primary {
+    background: var(--accent); 
+    border-color: var(--accent);
+    color: #fff; 
+    box-shadow: 0 4px 15px rgba(91, 155, 232, 0.3);
+  }
+  .btn.primary:hover { background: #72abf0; }
+
+  #fireworks-frame {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    border: none; z-index: 500; display: none; background: #000;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+<iframe id="fireworks-frame" allow="autoplay"></iframe>
+
+<div class="overlay" id="panel">
+  <div class="card">
+    <h2 id="panel-title">准备好了吗？</h2>
+    <p id="panel-desc">接下来会有一个小小的生日惊喜。</p>
+    <div class="btn-row" id="panel-actions"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   配置区：你主要改这里
+   ============================================================ */
+const CONFIG = {
+  fireworksPath: 'Firework_Simulator/index.html',
+
+  heartMessages: [
+    '开心每一天！', '又长大一岁啦！', '要幸福呀！', '所有美好都奔向你！',
+    '你值得被偏爱！', '生日快乐呀！', '新的一岁闪闪发光！', '愿你自由又快乐！',
+    '你是一个小太阳呀！','我爱你呀！','생일 축하해','お誕生日おめでとう','Happy 20th! 🎂'
+  ],
+
+  blessingMessages: [
+    '在国外要好好照顾自己！', '20 岁生日快乐！', '我想你了！',
+    '要好好吃饭哦！', '希望每天都有开心的小事发生！', '走花路吧！',
+    '我一直在你身旁！', '想我就给我发消息吧！','烦恼退退退！',
+    '生日快乐！','你是最棒的！','祝你拥有一个闪闪发光的二十岁',
+    '假期见面！','加油！',
+  ],
+
+  // 🎁 填写真实的礼物名称（对应 A、B、C）
+  realGifts: [
+    '鲜花 💐(对只是一个emoji😜)', 
+    '请你喝一杯奶茶 🥤', 
+    '给你一个啵啵 😘'
+  ],
+
+  heartDelay: 150, heartPause: 1000,
+  blessingDelay: 100, blessingPause: 1800,
+
+  fireworksDuration: 13000, 
+};
+
+/* ============================================================
+   基础工具
+   ============================================================ */
+const stage = document.getElementById('stage');
+const panel = document.getElementById('panel');
+const pTitle = document.getElementById('panel-title');
+const pDesc = document.getElementById('panel-desc');
+const pActions = document.getElementById('panel-actions');
+const fireworksFrame = document.getElementById('fireworks-frame');
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function showPanel(title, desc, actions) {
+  pTitle.textContent = title; 
+  pDesc.innerHTML = desc; 
+  pActions.innerHTML = '';
+  
+  // 刚出现时禁用鼠标点击，防止事件穿透
+  pActions.style.pointerEvents = 'none';
+
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (a.primary ? ' primary' : '');
+    btn.textContent = a.label;
+    
+    btn.addEventListener('click', (e) => { 
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 点击后立刻锁死所有按钮，防止连点
+      const allBtns = pActions.querySelectorAll('button');
+      allBtns.forEach(b => b.disabled = true);
+      
+      panel.classList.add('hidden'); 
+      
+      // 延迟 200 毫秒再执行下一步
+      setTimeout(() => {
+        a.onClick();
+      }, 200);
+    });
+    pActions.appendChild(btn);
+  });
+  
+  panel.classList.remove('hidden');
+  
+  // 300毫秒后恢复按钮的点击功能
+  setTimeout(() => {
+    pActions.style.pointerEvents = 'auto';
+  }, 300);
+}
+function hidePanel() { panel.classList.add('hidden'); }
+
+/* ============================================================
+   阶段一：心形弹窗
+   ============================================================ */
+function getHeartPoints(count) {
+  const pts = [];
+  for (let i = 0; i < count; i++) {
+    const t = (i / count) * Math.PI * 2;
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+    pts.push({ x, y });
+  }
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  
+  const W = window.innerWidth * 0.65, H = window.innerHeight * 0.55; 
+  const ox = (window.innerWidth - W) / 2, oy = (window.innerHeight - H) / 2;
+  return pts.map(p => ({
+    x: ox + ((p.x - minX) / (maxX - minX)) * W,
+    y: oy + ((p.y - minY) / (maxY - minY)) * H,
+  }));
+}
+
+async function runHeartStage() {
+  hidePanel();
+  // 略微缩小弹窗数量到 28，配合加大的弹窗避免糊在一起
+  const count = 45, points = getHeartPoints(count), msgs = CONFIG.heartMessages;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    // 加入 heart-mode 类
+    el.className = 'fake-window heart-mode'; 
+    el.textContent = msgs[i % msgs.length];
+    
+    el.style.left = '0px'; el.style.top = '0px';
+    stage.appendChild(el);
+    const r = el.getBoundingClientRect();
+    el.style.left = (points[i].x - r.width / 2) + 'px';
+    el.style.top = (points[i].y - r.height / 2) + 'px';
+    await wait(20); el.classList.add('show');
+    await wait(CONFIG.heartDelay);
+  }
+  await wait(CONFIG.heartPause);
+}
+
+/* ============================================================
+   阶段二：全屏祝福
+   ============================================================ */
+async function runBlessingStage() {
+  stage.innerHTML = '';
+  
+  const baseMsgs = CONFIG.blessingMessages;
+  let msgs = [];
+  // 🔥 修改了这里的循环次数，从 4 增加到 7，生成 56 个弹窗铺满屏幕
+  for(let i=0; i<7; i++) { msgs = msgs.concat(baseMsgs); } 
+  msgs.sort(() => Math.random() - 0.5); 
+
+  for (let i = 0; i < msgs.length; i++) {
+    const el = document.createElement('div');
+    el.className = 'fake-window blessing'; el.textContent = msgs[i];
+    
+    el.style.left = '0px'; el.style.top = '0px';
+    stage.appendChild(el);
+    const r = el.getBoundingClientRect();
+    
+    const padding = 20;
+    const maxX = window.innerWidth - r.width - padding;
+    const maxY = window.innerHeight - r.height - padding;
+    const randX = padding + Math.random() * maxX;
+    const randY = padding + Math.random() * maxY;
+    
+    el.style.left = randX + 'px';
+    el.style.top = randY + 'px';
+    
+    await wait(20); el.classList.add('show');
+    await wait(CONFIG.blessingDelay);
+  }
+  await wait(CONFIG.blessingPause);
+}
+
+/* ============================================================
+   阶段三：烟花
+   ============================================================ */
+async function runFireworksStage() {
+  stage.innerHTML = '';
+  hidePanel();
+  fireworksFrame.src = CONFIG.fireworksPath;
+  fireworksFrame.style.display = 'block';
+  await wait(CONFIG.fireworksDuration);
+}
+
+/* ============================================================
+   阶段四：礼物盲盒抽选
+   ============================================================ */
+function runGiftStage() {
+  showPanel('接下来是生日礼物环节', '这里有三个神秘盲盒，选一个你喜欢的吧！', [
+    { label: '盲盒 A', primary: false, onClick: () => finish('A') },
+    { label: '盲盒 B', primary: false, onClick: () => finish('B') },
+    { label: '盲盒 C', primary: false, onClick: () => finish('C') },
+  ]);
+}
+
+function finish(c) {
+  let giftName = '';
+  if (c === 'A') giftName = CONFIG.realGifts[0];
+  if (c === 'B') giftName = CONFIG.realGifts[1];
+  if (c === 'C') giftName = CONFIG.realGifts[2];
+
+  // 延迟 400 毫秒再显示，给鼠标点击动作足够的释放时间
+  setTimeout(() => {
+    showPanel(
+      '🎉 盲盒开启！',
+      `你抽中了 <b>盲盒 ${c}</b>！<br><br>
+      恭喜获得：<br>
+      <span style="font-size: 22px; font-weight: bold; color: #5b9be8; display: inline-block; margin: 10px 0;">${giftName}</span><br><br>
+      祝蔡舒欣 20 岁生日快乐，新的一岁万事胜意！<br><br>
+      <span style="font-size: 14px; color: #4a628a;">(截图找我兑奖哦！)</span>`,
+      [{ label: '开心收下', primary: true, onClick: () => {
+        fireworksFrame.style.display = 'none';
+        fireworksFrame.src = '';
+      }}]
+    );
+  }, 400); 
+}
+
+/* ============================================================
+   主流程
+   ============================================================ */
+async function main() {
+  showPanel('准备好了吗？', '接下来会有一个小小的生日惊喜。',
+    [{ label: '准备好了', primary: true, onClick: startShow }]);
+}
+
+async function startShow() {
+  await runHeartStage();
+  await runBlessingStage();
+  showPanel('准备好观看烟花了吗？', '夜空即将被点亮。',
+    [{ label: '准备好了', primary: true, onClick: startFireworksAndGift }]);
+}
+
+async function startFireworksAndGift() {
+  await runFireworksStage();
+  runGiftStage();
+}
+
+main();
+</script>
+</body>
+</html>
