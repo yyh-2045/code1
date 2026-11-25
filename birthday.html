@@ -62,6 +62,23 @@
     background: linear-gradient(160deg, rgba(220, 240, 255, 0.85), rgba(190, 220, 255, 0.75));
   }
 
+  /* 👇 新增：祝福正文的样式 */
+  .blessing-content {
+    font-size: clamp(14px, 1.5vw, 18px); 
+    font-weight: 600; 
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 8px; /* 和署名的间距 */
+  }
+
+  /* 👇 新增：署名的样式 */
+  .blessing-author {
+    font-size: clamp(12px, 1.2vw, 14px);
+    color: #64748b; /* 灰蓝色，不抢正文风头 */
+    text-align: right; /* 靠右对齐 */
+    font-style: italic; /* 斜体 */
+  }
+
   .overlay {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(230, 240, 255, 0.4); 
@@ -140,18 +157,18 @@ const CONFIG = {
   ],
 
   blessingMessages: [
-    '在国外要好好照顾自己！', '20 岁生日快乐！', '我想你了！',
-    '要好好吃饭哦！', '希望每天都有开心的小事发生！', '走花路吧！',
-    '我一直在你身旁！', '想我就给我发消息吧！','烦恼退退退！',
-    '生日快乐！','你是最棒的！','祝你拥有一个闪闪发光的二十岁',
-    '假期见面！','加油！','生日快乐ദ്ദി◝ ⩊ ◜.ᐟ ——charming',
-    '好好吃饭！——ny','天天开心！——ny','20岁生日快乐！——ny',
-    '平安喜乐  ——xzy','20岁后的每一天，希望你永远开心，热烈 ——lrx',
-    '生日快乐呀！在外面一切顺利！！！ ——dzx','生日快乐呀！ ——hmq',
-    '在国外要记得照顾好自己！ ——hmq','生日快乐，祝小蔡天天开心 ——mhj',
-    '年年今日，岁岁今朝 ——msy','一起到无数个明天去！ ——msy','此刻，我们共同庆祝你的存在 ——msy',
-    '永远热烈，永远自由 ——msy','我的少女时代是一个可爱温暖的你 ——msy',
+    '在国外要好好照顾自己！——yyh', '20 岁生日快乐！——yyh', '我想你了！——yyh',
     '天天开心！ ——yyx','岁岁无虞，长安常乐！ ——yyx','祝你早安午安晚安， 祉猷并茂，顺遂无虞！ ——yyx',
+    '我一直在你身旁！——yyh', '想我就给我发消息吧！——yyh','烦恼退退退！——yyh',
+    '在国外要记得照顾好自己！ ——hmq','生日快乐，祝小蔡天天开心 ——mhj',
+    '假期见面！——yyh','生日快乐ദ്ദി◝ ⩊ ◜.ᐟ ——charming',
+    '好好吃饭！——ny','天天开心！——ny','20岁生日快乐！——ny',
+    '永远热烈，永远自由 ——msy','我的少女时代是一个可爱温暖的你 ——msy',
+    '要好好吃饭哦！——yyh', '希望每天都有开心的小事发生！——yyh', '走花路吧！——yyh',
+    '平安喜乐  ——xzy','20岁后的每一天，希望你永远开心，热烈 ——lrx',
+    '年年今日，岁岁今朝 ——msy','一起到无数个明天去！ ——msy','此刻，我们共同庆祝你的存在 ——msy',
+    '生日快乐呀！在外面一切顺利！！！ ——dzx','生日快乐呀！ ——hmq',
+    '生日快乐！——yyh','你是最棒的！——yyh','祝你拥有一个闪闪发光的二十岁 ——yyh',
   ],
 
   // 🎁 填写真实的礼物名称（对应 A、B、C）
@@ -164,7 +181,7 @@ const CONFIG = {
   heartDelay: 150, heartPause: 1000,
   blessingDelay: 100, blessingPause: 1800,
 
-  fireworksDuration: 16000, 
+  fireworksDuration: 14000, 
 };
 
 /* ============================================================
@@ -275,12 +292,33 @@ async function runBlessingStage() {
   for(let i=0; i<4; i++) { msgs = msgs.concat(baseMsgs); } 
   msgs.sort(() => Math.random() - 0.5); 
 
-  for (let i = 0; i < msgs.length; i++) {
+    for (let i = 0; i < msgs.length; i++) {
     const el = document.createElement('div');
-    el.className = 'fake-window blessing'; el.textContent = msgs[i];
+    el.className = 'fake-window blessing'; 
+    
+    // 解析正文和署名
+    let text = msgs[i];
+    const splitIndex = text.lastIndexOf('——'); // 找最后一个破折号
+    let formattedHTML = '';
+
+    if (splitIndex !== -1) {
+      // 有署名
+      const content = text.substring(0, splitIndex).trim();
+      const author = text.substring(splitIndex + 2).trim(); // 去掉破折号
+      formattedHTML = `
+        <div class="blessing-content">${content}</div>
+        <div class="blessing-author">—— ${author}</div>
+      `;
+    } else {
+      // 没署名
+      formattedHTML = `<div class="blessing-content">${text}</div>`;
+    }
+    
+    el.innerHTML = formattedHTML; // 使用 innerHTML 渲染 HTML 标签
     
     el.style.left = '0px'; el.style.top = '0px';
     stage.appendChild(el);
+    // ...下面原有的代码保持不变...
     const r = el.getBoundingClientRect();
     
     const padding = 20;
